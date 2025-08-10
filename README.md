@@ -1,77 +1,129 @@
 # 🏀 NBA Draft Bidding Game
 
-A fun interactive web app for running NBA player draft auctions with friends! Built with Streamlit and powered by real NBA statistics.
+An interactive web application for running NBA player draft bidding games using real player statistics from Excel files.
 
 ## 🎮 Features
 
-- **Real NBA Data**: Fetches current player statistics from the balldontlie API
-- **Auction Bidding**: Players bid on NBA stars with virtual currency
-- **Budget Management**: Each player starts with $1000 and must manage their budget
-- **Live Draft Board**: Real-time tracking of all players and their drafted teams
-- **Customizable**: Set number of rounds and players
-- **Fallback Data**: Uses sample data if API is unavailable
+- **Excel Data Integration**: Pulls NBA player stats directly from your Excel files
+- **Interactive Bidding**: Real-time bidding system with budget management
+- **Live Draft Board**: Track all players and budgets in real-time
+- **Customizable Setup**: Adjust number of players, rounds, and player names
+- **Accurate Stats**: Uses your own NBA player data (PPG, APG, RPG)
+- **Responsive Design**: Works on desktop and mobile devices
 
 ## 🚀 Quick Start
 
-### Option 1: Run Locally
+### Local Development
 
-1. **Clone the repository:**
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/nba-draft-app.git
+   git clone https://github.com/itemp22/nba-draft-app.git
    cd nba-draft-app
    ```
 
-2. **Install dependencies:**
+2. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Run the app:**
+3. **Add your Excel file**
+   - Place your NBA player stats Excel file in the project folder
+   - File should have columns for: Player Name, PPG, APG, RPG
+   - Supported formats: `.xlsx`, `.xls`
+
+4. **Run the app**
    ```bash
    streamlit run nbadraft_app.py
    ```
 
-4. **Open your browser** and go to `http://localhost:8501`
+### Streamlit Cloud Deployment
 
-### Option 2: Deploy to Streamlit Cloud
-
-1. Fork this repository to your GitHub account
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your GitHub account
-4. Select this repository
-5. Deploy! Your app will be live at a public URL
+1. **Fork this repository** to your GitHub account
+2. **Go to [share.streamlit.io](https://share.streamlit.io)**
+3. **Sign in with GitHub**
+4. **Click "New app"**
+5. **Select your repository**: `your-username/nba-draft-app`
+6. **Set main file path**: `nbadraft_app.py`
+7. **Click "Deploy"**
+8. **Upload your Excel file** to the deployed app
 
 ## 🎯 How to Play
 
-1. **Setup**: Configure number of rounds and players in the sidebar
-2. **Start**: Click "🚀 Start Draft" to begin the auction
-3. **Bid**: For each NBA player:
-   - Review their stats (PPG, APG, RPG)
-   - Enter your bid amount
-   - Choose the winning bidder
-   - Submit the bid
-4. **Track**: Monitor the live draft board to see everyone's teams
-5. **Win**: Build the best team within your budget!
+1. **Setup Game**
+   - Set number of rounds (default: 6)
+   - Set number of participants (default: 4)
+   - Enter player names
+
+2. **Start Draft**
+   - Click "Start Draft" to begin
+   - Each player gets $1000 budget
+
+3. **Bidding Process**
+   - NBA players are randomly selected each round
+   - View player stats (PPG, APG, RPG)
+   - Set bid amount and select winning bidder
+   - Budget is deducted from winning bidder
+   - Players can be skipped if no one wants to bid
+
+4. **Track Progress**
+   - Live draft board shows all teams
+   - Monitor remaining budgets
+   - View drafted players and their stats
+
+## 📊 Excel File Format
+
+Your Excel file should contain these columns:
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| Player Name | Full player name | "LeBron James" |
+| PPG | Points per game | "25.4" |
+| APG | Assists per game | "7.2" |
+| RPG | Rebounds per game | "7.8" |
+
+**Supported column names:**
+- Player Name: "Player", "Name", "Player Name"
+- PPG: "PPG", "Points", "PTS", "Points Per Game"
+- APG: "APG", "Assists", "AST", "Assists Per Game"
+- RPG: "RPG", "Rebounds", "REB", "Rebounds Per Game"
 
 ## 🛠️ Technical Details
 
-- **Frontend**: Streamlit
-- **Data Source**: balldontlie API (free, no authentication required)
-- **Backend**: Python
-- **Deployment**: Streamlit Cloud
+- **Framework**: Streamlit
+- **Data Source**: Excel files (.xlsx, .xls)
+- **Dependencies**: pandas, openpyxl
+- **Session Management**: Persistent game state across interactions
+- **Error Handling**: Graceful handling of missing or invalid data
 
-## 📊 API Information
+## 📁 Project Structure
 
-This app uses the [balldontlie API](https://www.balldontlie.io/) to fetch real NBA player statistics. The API is free to use and doesn't require authentication.
+```
+nba-draft-app/
+├── nbadraft_app.py      # Main application file
+├── requirements.txt     # Python dependencies
+├── README.md           # This file
+├── .gitignore          # Git ignore rules
+└── your-excel-file.xlsx # Your NBA player data
+```
+
+## 🔧 Dependencies
+
+- `streamlit>=1.28.0` - Web application framework
+- `pandas>=2.0.0` - Data manipulation
+- `openpyxl>=3.1.0` - Excel file reading
 
 ## 🤝 Contributing
 
-Feel free to submit issues and enhancement requests!
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-## 📝 License
+## 📄 License
 
 This project is open source and available under the [MIT License](LICENSE).
 
----
+## 🏀 Enjoy Your Draft!
 
-**Enjoy your NBA Draft! 🏀**
+Create exciting NBA draft experiences with real player statistics and competitive bidding!

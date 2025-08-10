@@ -1,83 +1,100 @@
 import streamlit as st
-import requests
 import random
 import time
+import pandas as pd
+import os
 
-# 🏀 Get NBA player stats using balldontlie API (free, no auth required)
+# 🏀 Get NBA player stats from Excel file (primary data source)
 def get_player_stats():
     try:
-        # Get current season players with stats
-        url = "https://www.balldontlie.io/api/v1/stats"
-        params = {
-            'per_page': 100,  # Get top 100 players by usage
-            'season': 2024,   # Current season
-            'page': 1
-        }
+        # Look for Excel file in the same directory
+        excel_files = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls'))]
         
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
+        if not excel_files:
+            st.error("❌ No Excel file found! Please add an Excel file with NBA player stats to this folder.")
+            st.stop()
         
-        response = requests.get(url, params=params, headers=headers, timeout=10)
-        response.raise_for_status()
+        # Use the first Excel file found
+        excel_file = excel_files[0]
+        st.info(f"📊 Reading from: {excel_file}")
         
-        data = response.json()
+        # Read the Excel file
+        df = pd.read_excel(excel_file)
+        
+        # Display the first few rows to help with column mapping
+        st.write("**Preview of your Excel data:**")
+        st.dataframe(df.head())
+        
+        # Try to identify columns automatically
+        player_col = None
+        ppg_col = None
+        apg_col = None
+        rpg_col = None
+        
+        # Look for common column names
+        for col in df.columns:
+            col_lower = col.lower()
+            if 'player' in col_lower or 'name' in col_lower:
+                player_col = col
+            elif 'ppg' in col_lower or 'points' in col_lower or 'pts' in col_lower:
+                ppg_col = col
+            elif 'apg' in col_lower or 'assists' in col_lower or 'ast' in col_lower:
+                apg_col = col
+            elif 'rpg' in col_lower or 'rebounds' in col_lower or 'reb' in col_lower:
+                rpg_col = col
+        
+        # If columns weren't found automatically, let user select them
+        if not all([player_col, ppg_col, apg_col, rpg_col]):
+            st.write("**Please select the correct columns:**")
+            col1, col2 = st.columns(2)
+            with col1:
+                player_col = st.selectbox("Player Name Column", df.columns, index=0 if player_col is None else list(df.columns).index(player_col))
+                ppg_col = st.selectbox("PPG Column", df.columns, index=0 if ppg_col is None else list(df.columns).index(ppg_col))
+            with col2:
+                apg_col = st.selectbox("APG Column", df.columns, index=0 if apg_col is None else list(df.columns).index(apg_col))
+                rpg_col = st.selectbox("RPG Column", df.columns, index=0 if rpg_col is None else list(df.columns).index(rpg_col))
+        
+        # Convert data to the required format
         stats = {}
-        
-        # Process player stats
-        for stat in data.get('data', []):
-            player = stat.get('player', {})
-            player_name = f"{player.get('first_name', '')} {player.get('last_name', '')}".strip()
-            
-            if player_name and player_name not in stats:
-                # Calculate averages
-                games_played = stat.get('game', {}).get('id', 0)
-                if games_played > 0:
-                    ppg = round(stat.get('pts', 0) / games_played, 1)
-                    apg = round(stat.get('ast', 0) / games_played, 1)
-                    rpg = round(stat.get('reb', 0) / games_played, 1)
-                    
-                    stats[player_name] = {
-                        'PPG': str(ppg),
-                        'APG': str(apg), 
-                        'RPG': str(rpg)
-                    }
+        for _, row in df.iterrows():
+            try:
+                player_name = str(row[player_col]).strip()
+                ppg = str(row[ppg_col]).strip()
+                apg = str(row[apg_col]).strip()
+                rpg = str(row[rpg_col]).strip()
+                
+                # Skip if player name is empty or NaN
+                if pd.isna(player_name) or player_name == 'nan' or player_name == '':
+                    continue
+                
+                # Convert stats to string format
+                if pd.isna(ppg) or ppg == 'nan':
+                    ppg = "0.0"
+                if pd.isna(apg) or apg == 'nan':
+                    apg = "0.0"
+                if pd.isna(rpg) or rpg == 'nan':
+                    rpg = "0.0"
+                
+                stats[player_name] = {
+                    'PPG': str(float(ppg)),
+                    'APG': str(float(apg)),
+                    'RPG': str(float(rpg))
+                }
+            except Exception as e:
+                st.warning(f"⚠️ Error processing row: {e}")
+                continue
         
         if stats:
+            st.success(f"✅ Successfully loaded {len(stats)} NBA players from your Excel file!")
             return stats
         else:
-            st.warning("⚠️ Could not fetch NBA stats. Using sample data instead.")
-            return get_sample_player_stats()
+            st.error("❌ No valid player data found in Excel file. Please check your data format.")
+            st.stop()
             
-    except requests.exceptions.RequestException as e:
-        st.error(f"❌ Error fetching NBA stats: {e}")
-        st.info("📊 Using sample player data instead.")
-        return get_sample_player_stats()
     except Exception as e:
-        st.error(f"❌ Unexpected error: {e}")
-        st.info("📊 Using sample player data instead.")
-        return get_sample_player_stats()
-
-# 📊 Sample player data as fallback
-def get_sample_player_stats():
-    sample_players = {
-        "LeBron James": {"PPG": "25.7", "APG": "7.3", "RPG": "7.9"},
-        "Stephen Curry": {"PPG": "29.4", "APG": "6.3", "RPG": "6.1"},
-        "Kevin Durant": {"PPG": "29.9", "APG": "5.5", "RPG": "7.4"},
-        "Giannis Antetokounmpo": {"PPG": "31.1", "APG": "5.7", "RPG": "11.8"},
-        "Nikola Jokic": {"PPG": "26.4", "APG": "8.3", "RPG": "12.4"},
-        "Luka Doncic": {"PPG": "33.9", "APG": "9.2", "RPG": "9.2"},
-        "Joel Embiid": {"PPG": "33.1", "APG": "4.2", "RPG": "10.2"},
-        "Jayson Tatum": {"PPG": "30.1", "APG": "4.6", "RPG": "8.8"},
-        "Damian Lillard": {"PPG": "25.1", "APG": "6.7", "RPG": "4.3"},
-        "Anthony Davis": {"PPG": "24.7", "APG": "3.6", "RPG": "12.3"},
-        "Devin Booker": {"PPG": "27.1", "APG": "5.5", "RPG": "4.5"},
-        "Jimmy Butler": {"PPG": "22.9", "APG": "5.3", "RPG": "5.9"},
-        "Kawhi Leonard": {"PPG": "23.8", "APG": "3.9", "RPG": "6.5"},
-        "Paul George": {"PPG": "23.8", "APG": "5.1", "RPG": "6.1"},
-        "Bam Adebayo": {"PPG": "20.4", "APG": "3.2", "RPG": "9.2"}
-    }
-    return sample_players
+        st.error(f"❌ Error reading Excel file: {e}")
+        st.error("Please make sure your Excel file is not open in another program and try again.")
+        st.stop()
 
 # 🎮 Sidebar: Game Setup
 st.sidebar.header("Game Setup")
