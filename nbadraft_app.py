@@ -116,11 +116,21 @@ if 'player_stats' not in st.session_state:
 
 # 🧠 Initialize game state safely
 if 'game_state' not in st.session_state or set(st.session_state.game_state.get('budgets', {}).keys()) != set(player_names):
+    # Initialize roster spots for each player
+    roster_spots = {
+        'PG': None,
+        'SG': None,
+        'SF': None,
+        'PF': None,
+        'C': None,
+        '6th Man': None
+    }
+    
     st.session_state.game_state = {
         'round': 1,
         'current_bidder_index': 0,
         'budgets': {name: 1000 for name in player_names},
-        'drafts': {name: [] for name in player_names},
+        'rosters': {name: roster_spots.copy() for name in player_names},
         'drafted_players': [],
         'skipped_players': [],
         'available_players': list(st.session_state.get('player_stats', {}).keys())
@@ -182,8 +192,13 @@ if st.session_state.get('draft_started'):
                     # Validate budget
                     if st.session_state.game_state['budgets'][winning_bidder] >= final_bid:
                         st.session_state.game_state['budgets'][winning_bidder] -= final_bid
-                        st.session_state.game_state['drafts'][winning_bidder].append(current_nba_player)
                         st.session_state.game_state['drafted_players'].append(current_nba_player)
+                        
+                        # Store the drafted player temporarily for roster assignment
+                        st.session_state['temp_drafted_player'] = current_nba_player
+                        st.session_state['temp_winning_bidder'] = winning_bidder
+                        st.session_state['show_roster_assignment'] = True
+                        st.rerun()
                     else:
                         st.error(f"❌ {winning_bidder} doesn't have enough budget for this bid!")
                         st.stop()
@@ -203,6 +218,40 @@ if st.session_state.get('draft_started'):
     else:
         st.success("🏁 Draft Complete!")
 
+# 🏀 Roster Assignment Interface
+if st.session_state.get('show_roster_assignment', False):
+    st.markdown("## 🏀 Assign Player to Roster Spot")
+    
+    winning_bidder = st.session_state.get('temp_winning_bidder')
+    drafted_player = st.session_state.get('temp_drafted_player')
+    
+    if winning_bidder and drafted_player:
+        st.write(f"**{winning_bidder}** drafted **{drafted_player}**")
+        
+        # Get available roster spots
+        roster = st.session_state.game_state['rosters'][winning_bidder]
+        available_spots = [spot for spot, player in roster.items() if player is None]
+        
+        if available_spots:
+            selected_spot = st.selectbox("Choose roster spot to fill:", available_spots)
+            
+            if st.button("✅ Assign to Roster"):
+                # Assign player to selected spot
+                st.session_state.game_state['rosters'][winning_bidder][selected_spot] = drafted_player
+                
+                # Clear temporary variables
+                del st.session_state['temp_drafted_player']
+                del st.session_state['temp_winning_bidder']
+                st.session_state['show_roster_assignment'] = False
+                st.rerun()
+        else:
+            st.error("No available roster spots!")
+            # Clear temporary variables
+            del st.session_state['temp_drafted_player']
+            del st.session_state['temp_winning_bidder']
+            st.session_state['show_roster_assignment'] = False
+            st.rerun()
+
 # 📋 Live Draft Board
 st.markdown("## 📊 Live Draft Board")
 
@@ -211,10 +260,13 @@ for i, name in enumerate(player_names):
     with cols[i]:
         st.subheader(name)
         st.write(f"💰 Budget: ${st.session_state.game_state['budgets'][name]}")
-        drafted = st.session_state.game_state['drafts'][name]
-        if drafted:
-            for player in drafted:
+        
+        # Display roster
+        roster = st.session_state.game_state['rosters'][name]
+        st.write("**Roster:**")
+        for spot, player in roster.items():
+            if player:
                 stats = st.session_state['player_stats'].get(player, {})
-                st.write(f"- {player} ({stats.get('PPG', 'N/A')} PPG, {stats.get('APG', 'N/A')} APG, {stats.get('RPG', 'N/A')} RPG)")
-        else:
-            st.write("No players drafted yet.")
+                st.write(f"**{spot}:** {player} ({stats.get('PPG', 'N/A')} PPG, {stats.get('APG', 'N/A')} APG, {stats.get('RPG', 'N/A')} RPG)")
+            else:
+                st.write(f"**{spot}:** Empty")
