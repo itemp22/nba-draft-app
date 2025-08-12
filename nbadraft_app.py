@@ -270,3 +270,45 @@ for i, name in enumerate(player_names):
                 st.write(f"**{spot}:** {player} ({stats.get('PPG', 'N/A')} PPG, {stats.get('APG', 'N/A')} APG, {stats.get('RPG', 'N/A')} RPG)")
             else:
                 st.write(f"**{spot}:** Empty")
+# ✏️ Edit Rosters Section
+st.markdown("## ✏️ Edit Rosters")
+
+for name in player_names:
+    roster = st.session_state.game_state['rosters'][name]
+    drafted_players = [p for p in roster.values() if p is not None]
+
+    if drafted_players:
+        st.subheader(f"Edit Roster for {name}")
+        
+        # Player to move
+        player_to_move = st.selectbox(
+            f"Select player to move for {name}",
+            drafted_players,
+            key=f"edit_player_{name}"
+        )
+
+        # All positions available (including current one)
+        available_positions = list(roster.keys())
+        current_position = [pos for pos, p in roster.items() if p == player_to_move][0]
+        new_position = st.selectbox(
+            f"Select new position for {player_to_move}",
+            available_positions,
+            index=available_positions.index(current_position),
+            key=f"edit_position_{name}"
+        )
+
+        if st.button(f"Update position for {player_to_move}", key=f"update_{name}"):
+            # Remove from current position
+            roster[current_position] = None
+            
+            # If the new position already has a player, swap
+            if roster[new_position] is not None:
+                swap_player = roster[new_position]
+                roster[current_position] = swap_player
+            
+            # Assign player to new position
+            roster[new_position] = player_to_move
+
+            st.success(f"{player_to_move} moved to {new_position}")
+            st.rerun()
+
