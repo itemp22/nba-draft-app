@@ -1,10 +1,12 @@
 import streamlit as st
+import os
+
 st.write("Streamlit version:", st.__version__)
-st.write("Experimental rerun attribute:", hasattr(st, "experimental_rerun"))
+st.write("Streamlit module location:", os.path.dirname(st.__file__))
+st.write("Has experimental_rerun:", hasattr(st, "experimental_rerun"))
 import random
 import time
 import pandas as pd
-import os
 
 # 🏀 Get NBA player stats from Excel file (primary data source)
 def get_player_stats():
