@@ -1,4 +1,6 @@
 import streamlit as st
+st.write("Streamlit version:", st.__version__)
+st.write("Experimental rerun attribute:", hasattr(st, "experimental_rerun"))
 import random
 import time
 import pandas as pd
