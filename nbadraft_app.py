@@ -1,9 +1,5 @@
 import streamlit as st
 import os
-
-st.write("Streamlit version:", st.__version__)
-st.write("Streamlit module location:", os.path.dirname(st.__file__))
-st.write("Has experimental_rerun:", hasattr(st, "experimental_rerun"))
 import random
 import time
 import pandas as pd
@@ -383,4 +379,4 @@ if st.button("Execute Trade"):
         st.session_state.game_state['budgets'][trade_to] += offer_from_cash
 
         st.success(f"Trade executed between {trade_from} and {trade_to}!")
-        st.experimental_rerun()
+        st.rerun()
