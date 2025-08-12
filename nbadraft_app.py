@@ -311,4 +311,72 @@ for name in player_names:
 
             st.success(f"{player_to_move} moved to {new_position}")
             st.rerun()
+st.markdown("## 🔄 Trade Players and Cash")
 
+# Select trading parties
+trade_from = st.selectbox("Select player initiating trade", player_names, key="trade_from")
+trade_to = st.selectbox("Select player to trade with", [p for p in player_names if p != trade_from], key="trade_to")
+
+# Get their rosters and budgets
+from_roster = st.session_state.game_state['rosters'][trade_from]
+to_roster = st.session_state.game_state['rosters'][trade_to]
+from_budget = st.session_state.game_state['budgets'][trade_from]
+to_budget = st.session_state.game_state['budgets'][trade_to]
+
+# Players available to trade from each side
+from_players = [p for p in from_roster.values() if p is not None]
+to_players = [p for p in to_roster.values() if p is not None]
+
+# Select players and cash offered by each side
+st.write(f"### Offer from {trade_from}:")
+offer_from_players = st.multiselect("Players to trade away", from_players, key="offer_from_players")
+offer_from_cash = st.number_input(f"Cash to trade away from {trade_from} (max ${from_budget})", min_value=0, max_value=from_budget, value=0, step=10, key="offer_from_cash")
+
+st.write(f"### Offer from {trade_to}:")
+offer_to_players = st.multiselect("Players to trade away", to_players, key="offer_to_players")
+offer_to_cash = st.number_input(f"Cash to trade away from {trade_to} (max ${to_budget})", min_value=0, max_value=to_budget, value=0, step=10, key="offer_to_cash")
+
+# Button to execute trade
+if st.button("Execute Trade"):
+    # Validate budgets again for safety
+    if offer_from_cash > from_budget:
+        st.error(f"{trade_from} does not have enough cash!")
+    elif offer_to_cash > to_budget:
+        st.error(f"{trade_to} does not have enough cash!")
+    else:
+        # Remove players from their rosters
+        for p in offer_from_players:
+            # Find and clear player's spot
+            for pos, player in from_roster.items():
+                if player == p:
+                    from_roster[pos] = None
+                    break
+        for p in offer_to_players:
+            for pos, player in to_roster.items():
+                if player == p:
+                    to_roster[pos] = None
+                    break
+        
+        # Add incoming players to rosters (fill empty spots)
+        def add_players_to_roster(roster, players):
+            empty_spots = [pos for pos, pl in roster.items() if pl is None]
+            if len(players) > len(empty_spots):
+                st.error("Not enough roster spots to complete trade!")
+                return False
+            for pos, player in zip(empty_spots, players):
+                roster[pos] = player
+            return True
+        
+        if not add_players_to_roster(from_roster, offer_to_players):
+            st.stop()
+        if not add_players_to_roster(to_roster, offer_from_players):
+            st.stop()
+
+        # Adjust budgets
+        st.session_state.game_state['budgets'][trade_from] -= offer_from_cash
+        st.session_state.game_state['budgets'][trade_from] += offer_to_cash
+        st.session_state.game_state['budgets'][trade_to] -= offer_to_cash
+        st.session_state.game_state['budgets'][trade_to] += offer_from_cash
+
+        st.success(f"Trade executed between {trade_from} and {trade_to}!")
+        st.experimental_rerun()
