@@ -135,7 +135,7 @@ if need_new_state:
         'skips_left': {name: skips_per_player for name in player_names}
     }
 
-st.title("🏀 NBA Draft Bidding Game (With Skips & First Bidder Rotation)")
+st.title("🏀 NBA Draft Bidding Game")
 
 # Start / Reset / Refresh controls
 if 'draft_started' not in st.session_state:
