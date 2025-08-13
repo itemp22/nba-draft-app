@@ -289,7 +289,7 @@ if st.button("Execute Trade"):
         st.session_state.game_state['budgets'][trade_from] -= offer_from_cash
         st.session_state.game_state['budgets'][trade_from] += offer_to_cash
         st.session_state.game_state['budgets'][trade_to] -= offer_to_cash
-        st.session_state.game_game_state['budgets'][trade_to] += offer_from_cash
+        st.session_state.game_state['budgets'][trade_to] += offer_from_cash
 
         st.success(f"Trade executed between {trade_from} and {trade_to}!")
         st.rerun()
