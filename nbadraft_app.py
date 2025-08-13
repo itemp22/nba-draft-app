@@ -132,8 +132,7 @@ if need_new_state:
         'rosters': {name: ROSTER_TEMPLATE.copy() for name in player_names},
         'drafted_players': [],
         'available_players': list(st.session_state.get('player_stats', {}).keys()),
-        'skips_left': {name: skips_per_player for name in player_names},
-        'turns_taken': 0
+        'skips_left': {name: skips_per_player for name in player_names}
     }
 
 st.title("🏀 NBA Draft Bidding Game (With Skips & First Bidder Rotation)")
@@ -185,10 +184,11 @@ if st.session_state.get('draft_started'):
         first_bidder_index = st.session_state.game_state['current_first_bidder_index']
         first_bidder = player_names[first_bidder_index]
         skips_left = st.session_state.game_state['skips_left'][first_bidder]
+        budget = st.session_state.game_state['budgets'][first_bidder]
 
-        st.write(f"**Current First Bidder:** {first_bidder} (Skips left: {skips_left})")
+        st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget} | Skips left: {skips_left}")
 
-        # Bid input (budget no longer limits)
+        # Bid input (budget does not limit)
         final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100)
 
         # Skip option
