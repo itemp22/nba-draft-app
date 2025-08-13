@@ -11,7 +11,7 @@ def get_player_stats():
     try:
         excel_files = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls'))]
         if not excel_files:
-            st.error("❌ No Excel file found! Please add an Excel file with NBA player stats to this folder.")
+            st.error("❌ No Excel file found! Add an Excel file with NBA stats in this folder.")
             st.stop()
 
         excel_file = excel_files[0]
@@ -21,36 +21,23 @@ def get_player_stats():
         st.write("**Preview of your Excel data:**")
         st.dataframe(df.head())
 
-        player_col = None
-        ppg_col = None
-        apg_col = None
-        rpg_col = None
-
+        # Auto-detect columns
+        col_map = {"player": None, "pts": None, "ast": None, "reb": None}
         for col in df.columns:
             cl = str(col).lower()
-            if ('player' in cl or 'name' in cl) and player_col is None:
-                player_col = col
-            if (('ppg' in cl) or ('points' in cl) or ('pts' in cl)) and ppg_col is None:
-                ppg_col = col
-            if (('apg' in cl) or ('assists' in cl) or ('ast' in cl)) and apg_col is None:
-                apg_col = col
-            if (('rpg' in cl) or ('rebounds' in cl) or ('reb' in cl)) and rpg_col is None:
-                rpg_col = col
-
-        if not all([player_col, ppg_col, apg_col, rpg_col]):
-            st.write("**Please select the correct columns:**")
-            col1, col2 = st.columns(2)
-            with col1:
-                player_col = st.selectbox("Player Name Column", df.columns, index=0 if player_col is None else list(df.columns).index(player_col))
-                ppg_col = st.selectbox("PPG Column", df.columns, index=0 if ppg_col is None else list(df.columns).index(ppg_col))
-            with col2:
-                apg_col = st.selectbox("APG Column", df.columns, index=0 if apg_col is None else list(df.columns).index(apg_col))
-                rpg_col = st.selectbox("RPG Column", df.columns, index=0 if rpg_col is None else list(df.columns).index(rpg_col))
+            if 'player' in cl and col_map["player"] is None:
+                col_map["player"] = col
+            if 'pts' in cl and col_map["pts"] is None:
+                col_map["pts"] = col
+            if 'ast' in cl and col_map["ast"] is None:
+                col_map["ast"] = col
+            if 'reb' in cl and col_map["reb"] is None:
+                col_map["reb"] = col
 
         stats = {}
         for _, row in df.iterrows():
             try:
-                player_name = str(row[player_col]).strip()
+                player_name = str(row[col_map["player"]]).strip()
                 if pd.isna(player_name) or player_name.lower() == 'nan' or player_name == '':
                     continue
 
@@ -59,37 +46,30 @@ def get_player_stats():
                         return "0.0"
                     return str(float(x))
 
-                ppg = _coerce(row[ppg_col])
-                apg = _coerce(row[apg_col])
-                rpg = _coerce(row[rpg_col])
-
-                stats[player_name] = {'PPG': ppg, 'APG': apg, 'RPG': rpg}
-            except Exception as e:
-                st.warning(f"⚠️ Error processing row: {e}")
+                stats[player_name] = {
+                    'PPG': _coerce(row[col_map["pts"]]),
+                    'APG': _coerce(row[col_map["ast"]]),
+                    'RPG': _coerce(row[col_map["reb"]])
+                }
+            except:
                 continue
 
         if stats:
-            st.success(f"✅ Successfully loaded {len(stats)} NBA players from your Excel file!")
+            st.success(f"✅ Loaded {len(stats)} NBA players from Excel!")
             return stats
         else:
-            st.error("❌ No valid player data found in Excel file. Please check your data format.")
+            st.error("❌ No valid player data found.")
             st.stop()
 
     except Exception as e:
         st.error(f"❌ Error reading Excel file: {e}")
-        st.error("Please make sure your Excel file is not open in another program and try again.")
         st.stop()
 
 # =========================
 # Helpers
 # =========================
 ROSTER_TEMPLATE = {
-    'PG': None,
-    'SG': None,
-    'SF': None,
-    'PF': None,
-    'C': None,
-    '6th Man': None
+    'PG': None, 'SG': None, 'SF': None, 'PF': None, 'C': None, '6th Man': None
 }
 
 def all_rosters_full(rosters: dict) -> bool:
@@ -103,7 +83,6 @@ def manager_has_open_spot(rosters: dict, manager: str) -> bool:
 
 def advance_turn():
     total_players = len(player_names)
-    # rotate forward to the next manager that has an open spot
     for _ in range(total_players):
         st.session_state.game_state['current_first_bidder_index'] = (
             st.session_state.game_state['current_first_bidder_index'] + 1
@@ -111,8 +90,6 @@ def advance_turn():
         next_bidder = player_names[st.session_state.game_state['current_first_bidder_index']]
         if manager_has_open_spot(st.session_state.game_state['rosters'], next_bidder):
             break
-
-    # force a new NBA player selection next render
     if 'current_nba_player' in st.session_state:
         del st.session_state.current_nba_player
 
@@ -121,7 +98,6 @@ def advance_turn():
 # =========================
 st.sidebar.header("Game Setup")
 num_players = st.sidebar.number_input("Number of Participants", min_value=2, max_value=10, value=4)
-skips_per_player = st.sidebar.number_input("Skips per Player", min_value=0, max_value=10, value=1)
 
 if 'player_names' not in st.session_state or len(st.session_state.player_names) != num_players:
     st.session_state.player_names = [f"Player {i+1}" for i in range(num_players)]
@@ -147,17 +123,12 @@ if need_new_state:
         'budgets': {name: 1000 for name in player_names},
         'rosters': {name: copy.deepcopy(ROSTER_TEMPLATE) for name in player_names},
         'drafted_players': [],
-        'available_players': list(st.session_state.get('player_stats', {}).keys()),
-        'skips_left': {name: skips_per_player for name in player_names}
+        'available_players': list(st.session_state.get('player_stats', {}).keys())
     }
-
-    # ensure starting bidder has open spot
-    if not manager_has_open_spot(st.session_state.game_state['rosters'], player_names[0]):
-        advance_turn()
 
 st.title("🏀 NBA Draft Bidding Game")
 
-# Start / Reset / Refresh controls
+# Start / Reset / Refresh
 if 'draft_started' not in st.session_state:
     if st.button("🚀 Start Draft"):
         st.session_state.draft_started = True
@@ -181,7 +152,6 @@ if st.button("🔄 Refresh NBA Player Pool"):
 if st.session_state.get('draft_started'):
     rosters = st.session_state.game_state['rosters']
 
-    # ensure first bidder has an open spot before showing UI
     current_index = st.session_state.game_state['current_first_bidder_index']
     if not manager_has_open_spot(rosters, player_names[current_index]):
         advance_turn()
@@ -192,9 +162,8 @@ if st.session_state.get('draft_started'):
 
         available = [p for p in st.session_state.game_state['available_players']
                      if p not in st.session_state.game_state['drafted_players']]
-
         if not available:
-            st.error("No more available NBA players, but some roster spots are still empty.")
+            st.error("No more available NBA players, but some roster spots are empty.")
             st.stop()
 
         if 'current_nba_player' not in st.session_state or st.session_state.current_nba_player not in available:
@@ -203,60 +172,29 @@ if st.session_state.get('draft_started'):
         current_nba_player = st.session_state.current_nba_player
         stats = st.session_state['player_stats'].get(current_nba_player, {})
         st.markdown(f"### 🏀 NBA Player: **{current_nba_player}**")
-        st.write(f"**PPG:** {stats.get('PPG', 'N/A')} | **APG:** {stats.get('APG', 'N/A')} | **RPG:** {stats.get('RPG', 'N/A')}")
+        st.write(f"**PPG:** {stats.get('PPG','N/A')} | **APG:** {stats.get('APG','N/A')} | **RPG:** {stats.get('RPG','N/A')}")
 
-        # Current first bidder
         first_bidder_index = st.session_state.game_state['current_first_bidder_index']
         first_bidder = player_names[first_bidder_index]
-        skips_left = st.session_state.game_state['skips_left'][first_bidder]
         budget = st.session_state.game_state['budgets'][first_bidder]
+        st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget}")
 
-        st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget} | Skips left: {skips_left}")
-
-        # Final bid input + winner + spot selection grouped together with explicit validation
         eligible_winners = [name for name in player_names if manager_has_open_spot(rosters, name)]
-        skip_option = ["Skip"] if skips_left > 0 else []
-        winning_bidder_options = eligible_winners + skip_option
-
-        # Build a small form so the inputs are grouped and validated on submit
         with st.form("bid_form"):
-            final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100, key="final_bid")
-            winning_bidder = st.selectbox("🏆 Winning Bidder", winning_bidder_options, key="winning_bidder")
-
-            # Always show a roster-spot selectbox for winners (with placeholder)
-            selected_spot = None
-            if winning_bidder != "Skip":
-                winner_roster = rosters[winning_bidder]
-                available_spots = [spot for spot, pl in winner_roster.items() if pl is None]
-                # include an explicit placeholder as the first option to force a selection
-                spot_options = ["-- Choose a roster spot --"] + available_spots
-                selected_spot = st.selectbox("📌 Assign to Roster Spot", spot_options, key="assign_spot")
-            else:
-                # If Skip is chosen we don't show/require a spot; set to None
-                selected_spot = None
-
+            final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100)
+            winning_bidder = st.selectbox("🏆 Winning Bidder", eligible_winners)
+            winner_roster = rosters[winning_bidder]
+            available_spots = [spot for spot, pl in winner_roster.items() if pl is None]
+            selected_spot = st.selectbox("📌 Assign to Roster Spot", ["-- Choose --"] + available_spots)
             submit_clicked = st.form_submit_button("✅ Submit Bid")
 
-        # Handle submission AFTER form returns
         if submit_clicked:
-            # Skip handling
-            if winning_bidder == "Skip":
-                st.session_state.game_state['skips_left'][first_bidder] -= 1
-                advance_turn()
-                st.rerun()
-
-            # For non-skip: require a non-placeholder spot
-            if selected_spot is None or str(selected_spot).startswith("--"):
-                st.error("❗ You must choose a roster spot for the winning bidder before submitting the bid.")
+            if selected_spot.startswith("--"):
+                st.error("❗ You must choose a roster spot.")
             else:
-                # Apply budget to the winner (note: current first bidder's budget does not limit)
                 st.session_state.game_state['budgets'][winning_bidder] -= final_bid
-
-                # Mark player drafted and assign immediately
                 st.session_state.game_state['drafted_players'].append(current_nba_player)
                 st.session_state.game_state['rosters'][winning_bidder][selected_spot] = current_nba_player
-
-                # Advance to next valid first bidder AFTER assignment
                 advance_turn()
                 st.rerun()
     else:
@@ -276,6 +214,82 @@ for i, name in enumerate(player_names):
         for spot, player in roster.items():
             if player:
                 stats = st.session_state['player_stats'].get(player, {})
-                st.write(f"**{spot}:** {player} ({stats.get('PPG', 'N/A')} PPG, {stats.get('APG', 'N/A')} APG, {stats.get('RPG', 'N/A')} RPG)")
+                st.write(f"**{spot}:** {player} ({stats.get('PPG','N/A')} PPG, {stats.get('APG','N/A')} APG, {stats.get('RPG','N/A')} RPG)")
             else:
                 st.write(f"**{spot}:** Empty")
+
+# =========================
+# Edit Rosters
+# =========================
+st.markdown("## ✏️ Edit Rosters")
+for name in player_names:
+    roster = st.session_state.game_state['rosters'][name]
+    drafted_players = [p for p in roster.values() if p is not None]
+    if drafted_players:
+        st.subheader(f"Edit Roster for {name}")
+        player_to_move = st.selectbox(f"Select player to move for {name}", drafted_players, key=f"edit_player_{name}")
+        available_positions = list(roster.keys())
+        current_position = [pos for pos, p in roster.items() if p == player_to_move][0]
+        new_position = st.selectbox(f"Select new position for {player_to_move}", available_positions, index=available_positions.index(current_position), key=f"edit_position_{name}")
+        if st.button(f"Update position for {player_to_move}", key=f"update_{name}"):
+            roster[current_position] = None
+            if roster[new_position] is not None:
+                swap_player = roster[new_position]
+                roster[current_position] = swap_player
+            roster[new_position] = player_to_move
+            st.success(f"{player_to_move} moved to {new_position}")
+            st.rerun()
+
+# =========================
+# Trades
+# =========================
+st.markdown("## 🔄 Trade Players and Cash")
+trade_from = st.selectbox("Select player initiating trade", player_names, key="trade_from")
+trade_to = st.selectbox("Select player to trade with", [p for p in player_names if p != trade_from], key="trade_to")
+from_roster = st.session_state.game_state['rosters'][trade_from]
+to_roster = st.session_state.game_state['rosters'][trade_to]
+from_budget = st.session_state.game_state['budgets'][trade_from]
+to_budget = st.session_state.game_state['budgets'][trade_to]
+from_players = [p for p in from_roster.values() if p]
+to_players = [p for p in to_roster.values() if p]
+
+st.write(f"### Offer from {trade_from}:")
+offer_from_players = st.multiselect("Players to trade away", from_players, key="offer_from_players")
+offer_from_cash = st.number_input(f"Cash to trade away from {trade_from} (max ${from_budget})", min_value=0, max_value=from_budget, value=0, step=10, key="offer_from_cash")
+
+st.write(f"### Offer from {trade_to}:")
+offer_to_players = st.multiselect("Players to trade away", to_players, key="offer_to_players")
+offer_to_cash = st.number_input(f"Cash to trade away from {trade_to} (max ${to_budget})", min_value=0, max_value=to_budget, value=0, step=10, key="offer_to_cash")
+
+if st.button("Execute Trade"):
+    if offer_from_cash > from_budget:
+        st.error(f"{trade_from} does not have enough cash!")
+    elif offer_to_cash > to_budget:
+        st.error(f"{trade_to} does not have enough cash!")
+    else:
+        for p in offer_from_players:
+            for pos, pl in from_roster.items():
+                if pl == p: from_roster[pos] = None; break
+        for p in offer_to_players:
+            for pos, pl in to_roster.items():
+                if pl == p: to_roster[pos] = None; break
+
+        def add_players(roster, players):
+            empty_spots = [pos for pos, pl in roster.items() if pl is None]
+            if len(players) > len(empty_spots):
+                st.error("Not enough roster spots for trade!")
+                return False
+            for pos, pl in zip(empty_spots, players):
+                roster[pos] = pl
+            return True
+
+        if not add_players(from_roster, offer_to_players): st.stop()
+        if not add_players(to_roster, offer_from_players): st.stop()
+
+        st.session_state.game_state['budgets'][trade_from] -= offer_from_cash
+        st.session_state.game_state['budgets'][trade_from] += offer_to_cash
+        st.session_state.game_state['budgets'][trade_to] -= offer_to_cash
+        st.session_state.game_game_state['budgets'][trade_to] += offer_from_cash
+
+        st.success(f"Trade executed between {trade_from} and {trade_to}!")
+        st.rerun()
