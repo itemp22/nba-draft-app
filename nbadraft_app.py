@@ -103,13 +103,13 @@ def manager_has_open_spot(rosters: dict, manager: str) -> bool:
 
 def advance_turn():
     total_players = len(player_names)
-    for _ in range(total_players):  # loop at most once through all players
+    for _ in range(total_players):
         st.session_state.game_state['current_first_bidder_index'] = (
             st.session_state.game_state['current_first_bidder_index'] + 1
         ) % total_players
         next_bidder = player_names[st.session_state.game_state['current_first_bidder_index']]
         if manager_has_open_spot(st.session_state.game_state['rosters'], next_bidder):
-            break  # found someone with an open spot
+            break
 
 # =========================
 # Sidebar: Setup
@@ -146,7 +146,6 @@ if need_new_state:
         'skips_left': {name: skips_per_player for name in player_names}
     }
 
-    # ensure starting bidder has open spot
     if not manager_has_open_spot(st.session_state.game_state['rosters'], player_names[0]):
         advance_turn()
 
@@ -156,18 +155,18 @@ st.title("🏀 NBA Draft Bidding Game")
 if 'draft_started' not in st.session_state:
     if st.button("🚀 Start Draft"):
         st.session_state.draft_started = True
-        st.rerun()
+        st.stop()
 
 if st.button("🔁 Reset Game"):
     for key in ['game_state', 'draft_started', 'current_nba_player']:
         if key in st.session_state:
             del st.session_state[key]
-    st.rerun()
+    st.stop()
 
 if st.button("🔄 Refresh NBA Player Pool"):
     st.session_state['player_stats'] = get_player_stats()
     st.session_state.game_state['available_players'] = list(st.session_state['player_stats'].keys())
-    st.rerun()
+    st.stop()
 
 # =========================
 # Draft interface (single-step dynamic assignment)
@@ -193,21 +192,19 @@ if st.session_state.get('draft_started'):
         st.markdown(f"### 🏀 NBA Player: **{current_nba_player}**")
         st.write(f"**PPG:** {stats.get('PPG', 'N/A')} | **APG:** {stats.get('APG', 'N/A')} | **RPG:** {stats.get('RPG', 'N/A')}")
 
-        # Current first bidder
         first_bidder_index = st.session_state.game_state['current_first_bidder_index']
         first_bidder = player_names[first_bidder_index]
         skips_left = st.session_state.game_state['skips_left'][first_bidder]
         budget = st.session_state.game_state['budgets'][first_bidder]
         st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget} | Skips left: {skips_left}")
 
-        # Eligible winners
         eligible_winners = [p for p in player_names if manager_has_open_spot(rosters, p)]
         skip_option = ["Skip"] if skips_left > 0 else []
         winning_bidder_options = eligible_winners + skip_option
 
         winning_bidder = st.selectbox("🏆 Winning Bidder", winning_bidder_options)
 
-        # Dynamic roster spot key per bidder
+        # Dynamic roster spot selection
         selected_spot_key = f"selected_spot_{winning_bidder}"
         if selected_spot_key not in st.session_state:
             st.session_state[selected_spot_key] = "-- Choose --"
@@ -237,7 +234,10 @@ if st.session_state.get('draft_started'):
             advance_turn()
             if 'current_nba_player' in st.session_state:
                 del st.session_state['current_nba_player']
-            st.experimental_rerun()
+
+            # Trigger rerun safely
+            st.session_state._rerun_trigger = not st.session_state.get("_rerun_trigger", False)
+            st.stop()
     else:
         st.success("🏁 All rosters are full — Draft Complete!")
 
