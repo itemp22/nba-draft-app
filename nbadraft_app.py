@@ -207,20 +207,19 @@ if st.session_state.get('draft_started'):
         skip_option = ["Skip"] if skips_left > 0 else []
         winning_bidder_options = eligible_winners + skip_option
 
-        # Form for bid + roster spot
+        # Single-step form
         with st.form("bid_form"):
             final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100)
 
-            # Winning bidder dropdown
-            winning_bidder = st.selectbox("🏆 Winning Bidder", winning_bidder_options, key="winning_bidder_select")
+            # Winning bidder selection
+            winning_bidder = st.selectbox("🏆 Winning Bidder", winning_bidder_options)
 
-            # Reset roster spot if winning bidder changed
-            if ('last_winning_bidder' not in st.session_state or
-                st.session_state.last_winning_bidder != winning_bidder):
-                st.session_state['selected_spot'] = "-- Choose a roster spot --"
-            st.session_state.last_winning_bidder = winning_bidder
+            # Dynamic key for roster spot tied to this bidder
+            spot_key = f"selected_spot_{winning_bidder}"
+            if spot_key not in st.session_state:
+                st.session_state[spot_key] = "-- Choose a roster spot --"
 
-            # Roster spot dropdown for selected winning bidder
+            # Roster spot dropdown
             selected_spot = None
             if winning_bidder != "Skip":
                 winner_roster = rosters[winning_bidder]
@@ -229,19 +228,19 @@ if st.session_state.get('draft_started'):
                 selected_spot = st.selectbox(
                     "📌 Assign to Roster Spot",
                     spot_options,
-                    key="selected_spot"
+                    key=spot_key
                 )
 
             submit_clicked = st.form_submit_button("✅ Submit Bid")
 
-        # Process form submission
+        # Process submission
         if submit_clicked:
             if winning_bidder == "Skip":
                 st.session_state.game_state['skips_left'][first_bidder] -= 1
             elif selected_spot is None or selected_spot.startswith("--"):
                 st.error("❗ You must choose a roster spot for the winning bidder before submitting the bid.")
             else:
-                # Assign player immediately to chosen spot
+                # Assign player immediately
                 st.session_state.game_state['budgets'][winning_bidder] -= final_bid
                 st.session_state.game_state['drafted_players'].append(current_nba_player)
                 st.session_state.game_state['rosters'][winning_bidder][selected_spot] = current_nba_player
