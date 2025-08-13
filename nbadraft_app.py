@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import random
 import pandas as pd
+import copy
 
 # =========================
 # Data loading
@@ -100,6 +101,20 @@ def empty_spots_count(rosters: dict) -> int:
 def manager_has_open_spot(rosters: dict, manager: str) -> bool:
     return any(v is None for v in rosters[manager].values())
 
+def advance_turn():
+    total_players = len(player_names)
+    for _ in range(total_players):  # loop at most once through all players
+        st.session_state.game_state['current_first_bidder_index'] = (
+            st.session_state.game_state['current_first_bidder_index'] + 1
+        ) % total_players
+        next_bidder = player_names[st.session_state.game_state['current_first_bidder_index']]
+        if manager_has_open_spot(st.session_state.game_state['rosters'], next_bidder):
+            break  # found someone with an open spot
+
+    # remove current NBA player so a new one is chosen
+    if 'current_nba_player' in st.session_state:
+        del st.session_state.current_nba_player
+
 # =========================
 # Sidebar: Setup
 # =========================
@@ -129,11 +144,15 @@ if need_new_state:
     st.session_state.game_state = {
         'current_first_bidder_index': 0,
         'budgets': {name: 1000 for name in player_names},
-        'rosters': {name: ROSTER_TEMPLATE.copy() for name in player_names},
+        'rosters': {name: copy.deepcopy(ROSTER_TEMPLATE) for name in player_names},
         'drafted_players': [],
         'available_players': list(st.session_state.get('player_stats', {}).keys()),
         'skips_left': {name: skips_per_player for name in player_names}
     }
+
+    # ensure starting bidder has open spot
+    if not manager_has_open_spot(st.session_state.game_state['rosters'], player_names[0]):
+        advance_turn()
 
 st.title("🏀 NBA Draft Bidding Game")
 
@@ -197,13 +216,6 @@ if st.session_state.get('draft_started'):
         winning_bidder = st.selectbox("🏆 Winning Bidder", winning_bidder_options)
 
         if st.button("✅ Submit Bid"):
-            def advance_turn():
-                st.session_state.game_state['current_first_bidder_index'] = (
-                    st.session_state.game_state['current_first_bidder_index'] + 1
-                ) % len(player_names)
-                if 'current_nba_player' in st.session_state:
-                    del st.session_state.current_nba_player
-
             if winning_bidder == "Skip":
                 st.session_state.game_state['skips_left'][first_bidder] -= 1
                 advance_turn()
