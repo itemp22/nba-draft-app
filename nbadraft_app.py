@@ -103,15 +103,16 @@ def manager_has_open_spot(rosters: dict, manager: str) -> bool:
 
 def advance_turn():
     total_players = len(player_names)
-    for _ in range(total_players):  # loop at most once through all players
+    # rotate forward to the next manager that has an open spot
+    for _ in range(total_players):
         st.session_state.game_state['current_first_bidder_index'] = (
             st.session_state.game_state['current_first_bidder_index'] + 1
         ) % total_players
         next_bidder = player_names[st.session_state.game_state['current_first_bidder_index']]
         if manager_has_open_spot(st.session_state.game_state['rosters'], next_bidder):
-            break  # found someone with an open spot
+            break
 
-    # remove current NBA player so a new one is chosen
+    # force a new NBA player selection next render
     if 'current_nba_player' in st.session_state:
         del st.session_state.current_nba_player
 
@@ -180,8 +181,9 @@ if st.button("🔄 Refresh NBA Player Pool"):
 if st.session_state.get('draft_started'):
     rosters = st.session_state.game_state['rosters']
 
-    # ✅ Ensure current first bidder always has an open spot
-    if not manager_has_open_spot(rosters, player_names[st.session_state.game_state['current_first_bidder_index']]):
+    # ensure first bidder has an open spot before showing UI
+    current_index = st.session_state.game_state['current_first_bidder_index']
+    if not manager_has_open_spot(rosters, player_names[current_index]):
         advance_turn()
 
     if not all_rosters_full(rosters):
@@ -211,46 +213,50 @@ if st.session_state.get('draft_started'):
 
         st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget} | Skips left: {skips_left}")
 
-        # Bid input (budget does not limit)
-        final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100, key="final_bid")
-
-        # Eligible winners = only players with open spots
+        # Final bid input + winner + spot selection grouped together with explicit validation
         eligible_winners = [name for name in player_names if manager_has_open_spot(rosters, name)]
         skip_option = ["Skip"] if skips_left > 0 else []
         winning_bidder_options = eligible_winners + skip_option
 
-        winning_bidder = st.selectbox("🏆 Winning Bidder", winning_bidder_options, key="winning_bidder")
+        # Build a small form so the inputs are grouped and validated on submit
+        with st.form("bid_form"):
+            final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100, key="final_bid")
+            winning_bidder = st.selectbox("🏆 Winning Bidder", winning_bidder_options, key="winning_bidder")
 
-        selected_spot = None
-        if winning_bidder != "Skip":
-            # Spots available for the selected winner
-            winner_roster = rosters[winning_bidder]
-            available_spots = [spot for spot, pl in winner_roster.items() if pl is None]
-
-            if not available_spots:
-                st.error(f"❌ {winning_bidder} has no open roster spots! Choose a different winner or 'Skip'.")
+            # Always show a roster-spot selectbox for winners (with placeholder)
+            selected_spot = None
+            if winning_bidder != "Skip":
+                winner_roster = rosters[winning_bidder]
+                available_spots = [spot for spot, pl in winner_roster.items() if pl is None]
+                # include an explicit placeholder as the first option to force a selection
+                spot_options = ["-- Choose a roster spot --"] + available_spots
+                selected_spot = st.selectbox("📌 Assign to Roster Spot", spot_options, key="assign_spot")
             else:
-                selected_spot = st.selectbox("📌 Assign to Roster Spot", available_spots, key="assign_spot")
+                # If Skip is chosen we don't show/require a spot; set to None
+                selected_spot = None
 
-        # Submit: assignment and advance happen in the SAME step
-        if st.button("✅ Submit Bid", key="submit_bid"):
+            submit_clicked = st.form_submit_button("✅ Submit Bid")
+
+        # Handle submission AFTER form returns
+        if submit_clicked:
+            # Skip handling
             if winning_bidder == "Skip":
                 st.session_state.game_state['skips_left'][first_bidder] -= 1
                 advance_turn()
                 st.rerun()
-            else:
-                if selected_spot is None:
-                    st.error("Please choose a roster spot for the winning bidder.")
-                    st.stop()
 
-                # Apply budget (current first bidder's budget does NOT limit)
+            # For non-skip: require a non-placeholder spot
+            if selected_spot is None or str(selected_spot).startswith("--"):
+                st.error("❗ You must choose a roster spot for the winning bidder before submitting the bid.")
+            else:
+                # Apply budget to the winner (note: current first bidder's budget does not limit)
                 st.session_state.game_state['budgets'][winning_bidder] -= final_bid
 
                 # Mark player drafted and assign immediately
                 st.session_state.game_state['drafted_players'].append(current_nba_player)
                 st.session_state.game_state['rosters'][winning_bidder][selected_spot] = current_nba_player
 
-                # Advance to next valid first bidder AFTER roster is actually full (if it became full)
+                # Advance to next valid first bidder AFTER assignment
                 advance_turn()
                 st.rerun()
     else:
