@@ -208,30 +208,42 @@ if st.session_state.get('draft_started'):
 
         with st.form("bid_form"):
             final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100)
+
+            # Winning bidder dropdown
             winning_bidder = st.selectbox("🏆 Winning Bidder", winning_bidder_options, key="winning_bidder_select")
 
+            # Roster spot dropdown dynamically tied to winning bidder
             selected_spot = None
             if winning_bidder != "Skip":
                 winner_roster = rosters[winning_bidder]
                 available_spots = [spot for spot, player in winner_roster.items() if player is None]
                 spot_options = ["-- Choose a roster spot --"] + available_spots
-                selected_spot = st.selectbox("📌 Assign to Roster Spot", spot_options, key=f"assign_spot_{winning_bidder}")
+                selected_spot = st.selectbox(
+                    "📌 Assign to Roster Spot",
+                    spot_options,
+                    key=f"assign_spot_{winning_bidder}"
+                )
 
             submit_clicked = st.form_submit_button("✅ Submit Bid")
 
+        # Process submission
         if submit_clicked:
             if winning_bidder == "Skip":
                 st.session_state.game_state['skips_left'][first_bidder] -= 1
-                advance_turn()
-                st.rerun()
             elif selected_spot is None or selected_spot.startswith("--"):
                 st.error("❗ You must choose a roster spot for the winning bidder before submitting the bid.")
             else:
+                # Assign player immediately
                 st.session_state.game_state['budgets'][winning_bidder] -= final_bid
                 st.session_state.game_state['drafted_players'].append(current_nba_player)
                 st.session_state.game_state['rosters'][winning_bidder][selected_spot] = current_nba_player
-                advance_turn()
-                st.rerun()
+
+            # Advance to next bidder with open spots
+            advance_turn()
+            # Remove current NBA player to pick a new one next round
+            if 'current_nba_player' in st.session_state:
+                del st.session_state['current_nba_player']
+            st.rerun()
     else:
         st.success("🏁 All rosters are full — Draft Complete!")
 
