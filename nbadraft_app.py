@@ -20,7 +20,6 @@ def get_player_stats():
         st.write("**Preview of your Excel data:**")
         st.dataframe(df.head())
 
-        # Try to detect columns
         player_col = None
         ppg_col = None
         apg_col = None
@@ -81,7 +80,7 @@ def get_player_stats():
         st.stop()
 
 # =========================
-# Helpers / Game logic
+# Helpers
 # =========================
 ROSTER_TEMPLATE = {
     'PG': None,
@@ -106,8 +105,8 @@ def manager_has_open_spot(rosters: dict, manager: str) -> bool:
 # =========================
 st.sidebar.header("Game Setup")
 num_players = st.sidebar.number_input("Number of Participants", min_value=2, max_value=10, value=4)
+skips_per_player = st.sidebar.number_input("Skips per Player", min_value=0, max_value=10, value=1)
 
-# Player names persist & resize with num_players
 if 'player_names' not in st.session_state or len(st.session_state.player_names) != num_players:
     st.session_state.player_names = [f"Player {i+1}" for i in range(num_players)]
 
@@ -116,7 +115,7 @@ for i in range(num_players):
 
 player_names = st.session_state.player_names
 
-# Load stats once
+# Load stats
 if 'player_stats' not in st.session_state:
     st.session_state['player_stats'] = get_player_stats()
 
@@ -128,15 +127,16 @@ need_new_state = (
 
 if need_new_state:
     st.session_state.game_state = {
-        'current_bidder_index': 0,
+        'current_first_bidder_index': 0,
         'budgets': {name: 1000 for name in player_names},
         'rosters': {name: ROSTER_TEMPLATE.copy() for name in player_names},
         'drafted_players': [],
         'available_players': list(st.session_state.get('player_stats', {}).keys()),
+        'skips_left': {name: skips_per_player for name in player_names},
         'turns_taken': 0
     }
 
-st.title("🏀 NBA Draft Bidding Game (Fill All Roster Spots)")
+st.title("🏀 NBA Draft Bidding Game (With Skips & First Bidder Rotation)")
 
 # Start / Reset / Refresh controls
 if 'draft_started' not in st.session_state:
@@ -170,7 +170,7 @@ if st.session_state.get('draft_started'):
                      if p not in st.session_state.game_state['drafted_players']]
 
         if not available:
-            st.error("No more available NBA players, but some roster spots are still empty. Add more players or refresh Excel.")
+            st.error("No more available NBA players, but some roster spots are still empty.")
             st.stop()
 
         if 'current_nba_player' not in st.session_state or st.session_state.current_nba_player not in available:
@@ -181,31 +181,33 @@ if st.session_state.get('draft_started'):
         st.markdown(f"### 🏀 NBA Player: **{current_nba_player}**")
         st.write(f"**PPG:** {stats.get('PPG', 'N/A')} | **APG:** {stats.get('APG', 'N/A')} | **RPG:** {stats.get('RPG', 'N/A')}")
 
-        current_player_name = player_names[st.session_state.game_state['current_bidder_index']]
-        current_budget = st.session_state.game_state['budgets'][current_player_name]
-        st.write(f"**Current Bidder:** {current_player_name} (Budget: ${current_budget})")
+        # Current first bidder
+        first_bidder_index = st.session_state.game_state['current_first_bidder_index']
+        first_bidder = player_names[first_bidder_index]
+        skips_left = st.session_state.game_state['skips_left'][first_bidder]
 
-        max_any_budget = max(st.session_state.game_state['budgets'].values()) if st.session_state.game_state['budgets'] else 0
-        default_bid = min(100, current_budget)
-        final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=max_any_budget, step=10, value=default_bid)
-        winning_bidder = st.selectbox("🏆 Winning Bidder", player_names + ["Skip"])
+        st.write(f"**Current First Bidder:** {first_bidder} (Skips left: {skips_left})")
+
+        # Bid input (budget no longer limits)
+        final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100)
+
+        # Skip option
+        skip_option = ["Skip"] if skips_left > 0 else []
+        winning_bidder_options = player_names + skip_option
+        winning_bidder = st.selectbox("🏆 Winning Bidder", winning_bidder_options)
 
         if st.button("✅ Submit Bid"):
             def advance_turn():
-                st.session_state.game_state['turns_taken'] += 1
-                st.session_state.game_state['current_bidder_index'] = (
-                    st.session_state.game_state['current_bidder_index'] + 1
+                st.session_state.game_state['current_first_bidder_index'] = (
+                    st.session_state.game_state['current_first_bidder_index'] + 1
                 ) % len(player_names)
                 if 'current_nba_player' in st.session_state:
                     del st.session_state.current_nba_player
 
             if winning_bidder == "Skip":
+                st.session_state.game_state['skips_left'][first_bidder] -= 1
                 advance_turn()
                 st.rerun()
-
-            if st.session_state.game_state['budgets'][winning_bidder] < final_bid:
-                st.error(f"❌ {winning_bidder} doesn't have enough budget for this bid!")
-                st.stop()
 
             if not manager_has_open_spot(rosters, winning_bidder):
                 st.error(f"❌ {winning_bidder} has no open roster spots! Choose a different winner or 'Skip'.")
@@ -215,9 +217,9 @@ if st.session_state.get('draft_started'):
             st.session_state.game_state['drafted_players'].append(current_nba_player)
             st.session_state['temp_drafted_player'] = current_nba_player
             st.session_state['temp_winning_bidder'] = winning_bidder
-            st.session_state['show_roster_assignment'] = True
 
             advance_turn()
+            st.session_state['show_roster_assignment'] = True
             st.rerun()
     else:
         st.success("🏁 All rosters are full — Draft Complete!")
