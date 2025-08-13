@@ -171,11 +171,11 @@ if st.button("🔄 Refresh NBA Player Pool"):
     st.rerun()
 
 # =========================
-# Draft interface
+# Draft interface (single-step assignment)
 # =========================
 if st.session_state.get('draft_started'):
     rosters = st.session_state.game_state['rosters']
-    
+
     if not all_rosters_full(rosters):
         spots_left = empty_spots_count(rosters)
         st.markdown(f"## 🔥 Spots Remaining Across All Teams: **{spots_left}**")
@@ -207,7 +207,7 @@ if st.session_state.get('draft_started'):
         skip_option = ["Skip"] if skips_left > 0 else []
         winning_bidder_options = eligible_winners + skip_option
 
-        # Form for bid submission
+        # Form for bid + roster spot
         with st.form("bid_form"):
             final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100)
 
@@ -241,7 +241,7 @@ if st.session_state.get('draft_started'):
             elif selected_spot is None or selected_spot.startswith("--"):
                 st.error("❗ You must choose a roster spot for the winning bidder before submitting the bid.")
             else:
-                # Assign player immediately
+                # Assign player immediately to chosen spot
                 st.session_state.game_state['budgets'][winning_bidder] -= final_bid
                 st.session_state.game_state['drafted_players'].append(current_nba_player)
                 st.session_state.game_state['rosters'][winning_bidder][selected_spot] = current_nba_player
