@@ -98,7 +98,7 @@ def advance_turn():
 # =========================
 st.sidebar.header("Game Setup")
 num_players = st.sidebar.number_input("Number of Participants", min_value=2, max_value=10, value=4)
-default_skips = st.number_input("⏭️ Skips Per Player", min_value=0, max_value=10, value=1)
+default_skips = st.sidebar.number_input("⏭️ Skips Per Player", min_value=0, max_value=10, value=1)
 
 if 'player_names' not in st.session_state or len(st.session_state.player_names) != num_players:
     st.session_state.player_names = [f"Player {i+1}" for i in range(num_players)]
