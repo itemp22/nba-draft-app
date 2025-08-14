@@ -204,10 +204,14 @@ if st.session_state.get('draft_started'):
         if 'selected_spot' not in st.session_state:
             st.session_state.selected_spot = "-- Choose --"
 
+        spot_choices = ["-- Choose --"] + available_spots
+        if st.session_state.selected_spot not in spot_choices:
+            st.session_state.selected_spot = "-- Choose --"
+
         st.session_state.selected_spot = st.selectbox(
             "📌 Assign to Roster Spot",
-            ["-- Choose --"] + available_spots,
-            index=(["-- Choose --"] + available_spots).index(st.session_state.selected_spot)
+            spot_choices,
+            index=spot_choices.index(st.session_state.selected_spot)
         )
 
         with st.form("bid_form"):
