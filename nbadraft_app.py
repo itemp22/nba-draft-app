@@ -187,25 +187,21 @@ if st.session_state.get('draft_started'):
         if 'selected_bidder' not in st.session_state or st.session_state.selected_bidder not in eligible_winners:
             st.session_state.selected_bidder = eligible_winners[0]
 
-        st.selectbox(
+        selected_bidder = st.selectbox(
             "🏆 Winning Bidder",
             eligible_winners,
-            index=eligible_winners.index(st.session_state.selected_bidder),
-            key="temp_bidder"
+            index=eligible_winners.index(st.session_state.get("selected_bidder", eligible_winners[0])),
+            key="selected_bidder"
         )
-        if st.button("🔄 Confirm Bidder Selection"):
-            st.session_state.selected_bidder = st.session_state.temp_bidder
-            st.session_state.selected_spot = "-- Choose --"
-            st.rerun()
 
-        winner_roster = rosters[st.session_state.selected_bidder]
+        winner_roster = rosters[selected_bidder]
         available_spots = [spot for spot, pl in winner_roster.items() if pl is None]
 
         if 'selected_spot' not in st.session_state:
             st.session_state.selected_spot = "-- Choose --"
 
         spot_choices = ["-- Choose --"] + available_spots
-        if st.session_state.selected_spot not in spot_choices:
+        if 'selected_spot' not in st.session_state or st.session_state.selected_spot not in spot_choices:
             st.session_state.selected_spot = "-- Choose --"
 
         st.session_state.selected_spot = st.selectbox(
