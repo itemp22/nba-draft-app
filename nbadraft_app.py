@@ -127,10 +127,11 @@ if need_new_state:
         'drafted_players': [],
         'available_players': list(st.session_state.get('player_stats', {}).keys())
     }
-for name in player_names:
-    current_skips = st.session_state.game_state['skips_remaining'].get(name, None)
-    if current_skips is not None and current_skips != default_skips:
-        st.session_state.game_state['skips_remaining'][name] = default_skips
+if not st.session_state.get('draft_started'):
+    for name in player_names:
+        current_skips = st.session_state.game_state['skips_remaining'].get(name, None)
+        if current_skips is not None and current_skips != default_skips:
+            st.session_state.game_state['skips_remaining'][name] = default_skips
 st.title("🏀 NBA Draft Bidding Game")
 
 # Start / Reset / Refresh
