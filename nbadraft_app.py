@@ -183,10 +183,8 @@ if st.session_state.get('draft_started'):
         st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget} | Skips Left: {skips_left}")
 
         eligible_winners = [name for name in player_names if manager_has_open_spot(rosters, name)]
-        if st.session_state.selected_bidder not in eligible_winners:
-            st.session_state.selected_bidder = eligible_winners[0]
-        # Track selected bidder and spot
-        if 'selected_bidder' not in st.session_state:
+        # Ensure selected_bidder is initialized and valid
+        if 'selected_bidder' not in st.session_state or st.session_state.selected_bidder not in eligible_winners:
             st.session_state.selected_bidder = eligible_winners[0]
 
         st.selectbox(
