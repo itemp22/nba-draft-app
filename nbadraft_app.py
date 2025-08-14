@@ -100,10 +100,7 @@ st.sidebar.header("Game Setup")
 num_players = st.sidebar.number_input("Number of Participants", min_value=2, max_value=10, value=4)
 default_skips = st.sidebar.number_input("⏭️ Skips Per Player", min_value=0, max_value=10, value=1)
 # Sync skips if default_skips changes
-for name in player_names:
-    current_skips = st.session_state.game_state['skips_remaining'].get(name, None)
-    if current_skips is not None and current_skips != default_skips:
-        st.session_state.game_state['skips_remaining'][name] = default_skips
+
 if 'player_names' not in st.session_state or len(st.session_state.player_names) != num_players:
     st.session_state.player_names = [f"Player {i+1}" for i in range(num_players)]
 
@@ -111,7 +108,10 @@ for i in range(num_players):
     st.session_state.player_names[i] = st.sidebar.text_input(f"Player {i+1} Name", st.session_state.player_names[i])
 
 player_names = st.session_state.player_names
-
+for name in player_names:
+    current_skips = st.session_state.game_state['skips_remaining'].get(name, None)
+    if current_skips is not None and current_skips != default_skips:
+        st.session_state.game_state['skips_remaining'][name] = default_skips
 # Load stats
 if 'player_stats' not in st.session_state:
     st.session_state['player_stats'] = get_player_stats()
