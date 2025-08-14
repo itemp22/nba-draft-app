@@ -98,7 +98,7 @@ def advance_turn():
 # =========================
 st.sidebar.header("Game Setup")
 num_players = st.sidebar.number_input("Number of Participants", min_value=2, max_value=10, value=4)
-default_skips = st.sidebar.number_input("⏭️ Skips Per Player", min_value=0, max_value=10, value=3)
+default_skips = st.number_input("⏭️ Skips Per Player", min_value=0, max_value=10, value=1)
 
 if 'player_names' not in st.session_state or len(st.session_state.player_names) != num_players:
     st.session_state.player_names = [f"Player {i+1}" for i in range(num_players)]
@@ -183,23 +183,22 @@ if st.session_state.get('draft_started'):
         st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget} | Skips Left: {skips_left}")
 
         eligible_winners = [name for name in player_names if manager_has_open_spot(rosters, name)]
-
+        if st.session_state.selected_bidder not in eligible_winners:
+            st.session_state.selected_bidder = eligible_winners[0]
         # Track selected bidder and spot
         if 'selected_bidder' not in st.session_state:
             st.session_state.selected_bidder = eligible_winners[0]
-
-        def update_bidder():
-            st.session_state.selected_bidder = st.session_state.temp_bidder
-            st.session_state.selected_spot = "-- Choose --"
-            st.rerun()
 
         st.selectbox(
             "🏆 Winning Bidder",
             eligible_winners,
             index=eligible_winners.index(st.session_state.selected_bidder),
-            key="temp_bidder",
-            on_change=update_bidder
+            key="temp_bidder"
         )
+        if st.button("🔄 Confirm Bidder Selection"):
+            st.session_state.selected_bidder = st.session_state.temp_bidder
+            st.session_state.selected_spot = "-- Choose --"
+            st.rerun()
 
         winner_roster = rosters[st.session_state.selected_bidder]
         available_spots = [spot for spot, pl in winner_roster.items() if pl is None]
@@ -245,8 +244,7 @@ if st.session_state.get('draft_started'):
     else:
         st.success("🏁 All rosters are full — Draft Complete!")
 
-# =========================
-# Live Draft Board
+
 # =========================
 # Live Draft Board
 # =========================
