@@ -98,6 +98,7 @@ def advance_turn():
 # =========================
 st.sidebar.header("Game Setup")
 num_players = st.sidebar.number_input("Number of Participants", min_value=2, max_value=10, value=4)
+default_skips = st.sidebar.number_input("⏭️ Skips Per Player", min_value=0, max_value=10, value=3)
 
 if 'player_names' not in st.session_state or len(st.session_state.player_names) != num_players:
     st.session_state.player_names = [f"Player {i+1}" for i in range(num_players)]
@@ -122,6 +123,7 @@ if need_new_state:
         'current_first_bidder_index': 0,
         'budgets': {name: 1000 for name in player_names},
         'rosters': {name: copy.deepcopy(ROSTER_TEMPLATE) for name in player_names},
+        'skips_remaining': {name: default_skips for name in player_names},
         'drafted_players': [],
         'available_players': list(st.session_state.get('player_stats', {}).keys())
     }
@@ -177,7 +179,8 @@ if st.session_state.get('draft_started'):
         first_bidder_index = st.session_state.game_state['current_first_bidder_index']
         first_bidder = player_names[first_bidder_index]
         budget = st.session_state.game_state['budgets'][first_bidder]
-        st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget}")
+        skips_left = st.session_state.game_state['skips_remaining'][first_bidder]
+        st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget} | Skips Left: {skips_left}")
 
         eligible_winners = [name for name in player_names if manager_has_open_spot(rosters, name)]
 
@@ -228,9 +231,22 @@ if st.session_state.get('draft_started'):
                 st.session_state.game_state['rosters'][winning_bidder][st.session_state.selected_spot] = current_nba_player
                 advance_turn()
                 st.rerun()
+        if st.button("⏭️ Skip This Player"):
+            if st.session_state.game_state['skips_remaining'][first_bidder] > 0:
+                st.session_state.game_state['skips_remaining'][first_bidder] -= 1
+                st.session_state.current_nba_player = random.choice([
+                    p for p in st.session_state.game_state['available_players']
+                    if p not in st.session_state.game_state['drafted_players']
+                ])
+                advance_turn()
+                st.rerun()
+            else:
+                st.error(f"{first_bidder} has no skips remaining.")
     else:
         st.success("🏁 All rosters are full — Draft Complete!")
 
+# =========================
+# Live Draft Board
 # =========================
 # Live Draft Board
 # =========================
@@ -240,6 +256,7 @@ for i, name in enumerate(player_names):
     with cols[i]:
         st.subheader(name)
         st.write(f"💰 Budget: ${st.session_state.game_state['budgets'][name]}")
+        st.write(f"⏭️ Skips Left: {st.session_state.game_state['skips_remaining'][name]}")
         roster = st.session_state.game_state['rosters'][name]
         st.write("**Roster:**")
         for spot, player in roster.items():
@@ -248,7 +265,6 @@ for i, name in enumerate(player_names):
                 st.write(f"**{spot}:** {player} ({stats.get('PPG','N/A')} PPG, {stats.get('APG','N/A')} APG, {stats.get('RPG','N/A')} RPG)")
             else:
                 st.write(f"**{spot}:** Empty")
-
 # =========================
 # Edit Rosters
 # =========================
