@@ -180,21 +180,48 @@ if st.session_state.get('draft_started'):
         st.write(f"**Current First Bidder:** {first_bidder} | Budget: ${budget}")
 
         eligible_winners = [name for name in player_names if manager_has_open_spot(rosters, name)]
+
+        # Track selected bidder and spot
+        if 'selected_bidder' not in st.session_state:
+            st.session_state.selected_bidder = eligible_winners[0]
+
+        def update_bidder():
+            st.session_state.selected_bidder = st.session_state.temp_bidder
+            st.session_state.selected_spot = "-- Choose --"
+            st.rerun()
+
+        st.selectbox(
+            "🏆 Winning Bidder",
+            eligible_winners,
+            index=eligible_winners.index(st.session_state.selected_bidder),
+            key="temp_bidder",
+            on_change=update_bidder
+        )
+
+        winner_roster = rosters[st.session_state.selected_bidder]
+        available_spots = [spot for spot, pl in winner_roster.items() if pl is None]
+
+        if 'selected_spot' not in st.session_state:
+            st.session_state.selected_spot = "-- Choose --"
+
+        st.session_state.selected_spot = st.selectbox(
+            "📌 Assign to Roster Spot",
+            ["-- Choose --"] + available_spots,
+            index=(["-- Choose --"] + available_spots).index(st.session_state.selected_spot)
+        )
+
         with st.form("bid_form"):
             final_bid = st.number_input("💸 Final Bid Amount", min_value=0, max_value=10000, step=10, value=100)
-            winning_bidder = st.selectbox("🏆 Winning Bidder", eligible_winners)
-            winner_roster = rosters[winning_bidder]
-            available_spots = [spot for spot, pl in winner_roster.items() if pl is None]
-            selected_spot = st.selectbox("📌 Assign to Roster Spot", ["-- Choose --"] + available_spots)
             submit_clicked = st.form_submit_button("✅ Submit Bid")
 
         if submit_clicked:
-            if selected_spot.startswith("--"):
+            if st.session_state.selected_spot.startswith("--"):
                 st.error("❗ You must choose a roster spot.")
             else:
+                winning_bidder = st.session_state.selected_bidder
                 st.session_state.game_state['budgets'][winning_bidder] -= final_bid
                 st.session_state.game_state['drafted_players'].append(current_nba_player)
-                st.session_state.game_state['rosters'][winning_bidder][selected_spot] = current_nba_player
+                st.session_state.game_state['rosters'][winning_bidder][st.session_state.selected_spot] = current_nba_player
                 advance_turn()
                 st.rerun()
     else:
