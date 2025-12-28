@@ -9,12 +9,11 @@ import copy
 # =========================
 def get_player_stats():
     try:
-        excel_files = [f for f in os.listdir('.') if f.endswith(('.xlsx', '.xls'))]
-        if not excel_files:
-            st.error("❌ No Excel file found! Add an Excel file with NBA stats in this folder.")
-            st.stop()
+        excel_file = "sportsref_download.xlsx"
 
-        excel_file = excel_files[0]
+        if not os.path.exists(excel_file):
+            st.error(f"❌ Required data file not found: {excel_file}")
+            st.stop()
         st.info(f"📊 Reading from: {excel_file}")
 
         df = pd.read_excel(excel_file)
